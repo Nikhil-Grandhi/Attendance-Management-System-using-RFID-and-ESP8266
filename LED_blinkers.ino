@@ -35,8 +35,8 @@ RTC_DS3231 rtc;
 
 String SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0fWt8ArwMV9eePDYXHn6o3b5Un7cRWFC4jo9woQdiTmYcsjVN22H9VRwBQ3JBFFsn/exec";
 
-const char* WIFI_SSID = "Galaxy A50s1EE9";
-const char* WIFI_PASS = "kphn6124";
+const char* WIFI_SSID = "GalaxyA14";
+const char* WIFI_PASS = "pk123456";
 WiFiClientSecure client;
 #define SS_PIN  4 
 #define RST_PIN 5
@@ -69,14 +69,12 @@ bool log_upload_in_progress = true; // Flag for Mode 2 upload
 //attendance logger variables
 unsigned long lastScanTime_M1 = 0;
 const unsigned long scanCooldown_M1 = 3000; // 3-second cooldown
-// ADDED: Flag to help reset LCD in Mode 1
+
 bool inCooldown_M1 = false;
 
-// chch
-// unsigned long lastHeartbeatTime = 0;
-// const unsigned long BROWSER_TIMEOUT = 15000;
+
 // ===================================================================
-// == HELPER FUNCTIONS - MODE 0 (Unchanged)
+//    HELPER FUNCTIONS - MODE 0 (Unchanged)
 // ===================================================================
 void findMode(){
   const long THRESHOLD_1 = (long(V0 + V1)) / 2;
@@ -141,16 +139,9 @@ bool isUidRegistered(String uid) {
   lookupFile.close();
   return false;
 }
-// chch---
-// void handleHeartbeat() {
-//   server.send(200, "text/plain", ""); // 1. Acknowledge the ping
-//   lastHeartbeatTime = millis();       // 2. Update the "last seen" time
-//   if (!visitedWebsite) {
-//     visitedWebsite = true;
-//   }
-// }
+
 void handleRoot() {
-  // CHANGED: This is STAGE 3 of the LCD logic
+
   if (!visitedWebsite) {
     visitedWebsite = true;
   }
@@ -207,13 +198,6 @@ void handleRoot() {
     html += "<p>Returning to scanner in a moment...</p>";
   }
 
-  // chch
-  // html += "<script>";
-  // html += "  setInterval(function() {";
-  // html += "    fetch('/heartbeat');";
-  // html += "  }, 5000);"; // 5000 milliseconds = 5 seconds
-  // html += "</script>";
-  //
   html += "</div></body></html>";
   server.send(200, "text/html", html);
 }
@@ -245,7 +229,7 @@ void handleSave() {
     html += "</div></body></html>";
     server.send(200, "text/html", html);
     currentState = STATE_WAITING_FOR_CARD;
-    // ADDED: Reset the LCD after saving
+
     displayOnLCD("Tap Your ID Card","");
     globalScannedUID = "";
   } else {
@@ -253,35 +237,9 @@ void handleSave() {
   }
 }
 
-
 // ===================================================================
-// Helper functions for mode 1.
+//    Helper functions for mode 1.
 // ===================================================================
-/**
-  * @brief Checks the /lookup.csv to find a student's details.
-  * @param uid The UID to search for.
-  * @return The full line from the file ("UID,Roll,Name") or "" if not found.
-  */
-
-/**
-  * @brief Counts how many times a UID appears in the attendance.csv log.
-  * @param uid The UID to search for.
-  * @return The number of times (0, 1, 2, etc.) the UID is in the log.
-  */
-/*
- * ===================================================================
- * == COMBINED TAP STATUS FUNCTION
- * ===================================================================
- * This function replaces BOTH getTapCount and isCooldownActive.
- * It reads the attendance file only ONCE.
- * It also includes the fix for the New Year bug.
- *
- * RETURNS:
- * -1 : Cooldown Active (tapped < 40 mins ago)
- * 0 : No taps today (valid for an "IN" tap)
- * 1 : One tap today (valid for an "OUT" tap)
- * 2+ : Two or more taps today (already logged out)
- */
 int checkTapStatus(String uid, DateTime now) {
   File attendanceFile = SPIFFS.open("/attendance.csv", "r");
   if (!attendanceFile) {
@@ -342,8 +300,8 @@ int checkTapStatus(String uid, DateTime now) {
   if (mostRecentTapEpoch > 0) { // If we found a tap from today
     long secondsSinceLastTap = nowEpoch - mostRecentTapEpoch;
     
-    // cahnge 40 sec to 40 minutes = 2400 seconds
-    if (secondsSinceLastTap < 40 && count%2 != 0) {
+    // 40 minutes = 2400 seconds
+    if (secondsSinceLastTap < 2400 && count%2 != 0) {
       // Cooldown is active!
       Serial.println("Cooldown active. Last tap was " + String(secondsSinceLastTap) + " seconds ago.");
       return -1; // Return special code for "cooldown"
@@ -380,42 +338,6 @@ String getStudentDetails(String uid) {
   return ""; // Not found
 }
 
-/**
-  * @brief Checks if a student is already in the /attendance.csv log.
-  * @param uid The UID to search for.
-  * @return true if the student has already been logged, false otherwise.
-  */
-// not used currently 
-// bool isAlreadyLogged(String uid) {
-//   File attendanceFile = SPIFFS.open("/attendance.csv", "r");
-//   if (!attendanceFile) {
-//     return false; // File doesn't exist, so no one is logged
-//   }
-//   while (attendanceFile.available()) {
-//     String line = attendanceFile.readStringUntil('\n');
-//     line.trim();
-//     int comma1 = line.indexOf(',');
-//     if (comma1 != -1) {
-//       if (line.substring(0, comma1).equals(uid)) {
-//         attendanceFile.close();
-//         Serial.println("Student already logged today.");
-//         return true; // Found!
-//       }
-//     }
-//   }
-//   attendanceFile.close();
-//   return false; // Not found
-// }
-
-/**
-  * @brief Appends a student's details to the /attendance.csv file.
-  * @param studentDetails The full "UID,Roll,Name" string.
-  */
-/**
-  * @brief Appends a student's tap to the /attendance.csv file.
-  * @param studentDetails The full "UID,Roll,Name" string.
-  * @param tapType The string "IN" or "OUT".
-  */
 void logAttendance(String studentDetails, String tapType, String timestamp){
   File attendanceFile = SPIFFS.open("/attendance.csv", "a"); // "a" for append
   if (!attendanceFile) {
@@ -449,10 +371,6 @@ void displayOnLCD(String row1,String row2) {
 
 }
 
-/**
-  * @brief Clears the daily attendance log.
-  * You can call this from Mode 2 after uploading.
-  */
 void clearAttendanceLog() {
     if (SPIFFS.exists("/attendance.csv")) {
       if (SPIFFS.remove("/attendance.csv")) {
@@ -478,7 +396,6 @@ void clearAttendanceLog() {
 // }
 
 
-
 // ===================================================================
 //  MAIN SETUP FUNCTION
 // ===================================================================
@@ -486,6 +403,7 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   Serial.println("\n\nStarting MPMC Attendance System...");
+
 
   findMode();
 
@@ -512,6 +430,7 @@ void setup() {
   }
   Serial.println("SPIFFS Mounted.");
   SPI.begin();
+
   // clearAttendanceLog();  
 
   // Serial.println("Reading mode switches...");
@@ -555,9 +474,7 @@ void setup() {
     // 5. NOW start the web server and DNS
     server.on("/", HTTP_GET, handleRoot);
     server.on("/save", HTTP_POST, handleSave);
-    // chch
-    // server.on("/heartbeat", handleHeartbeat);
-    //
+
     server.begin();
     Serial.println("Web server started.");
     dnsServer.start(53, dnsName, apIP);
@@ -565,7 +482,7 @@ void setup() {
   }
   else if (s0 == 0 && s1 == 1) {
     // ---------------------------------
-    // --- MODE 1: ATTENDANCE LOGGING
+    //      MODE 1: ATTENDANCE LOGGING
     // ---------------------------------
     Serial.println("Entering Mode 1: ATTENDANCE LOGGING");
     displayOnLCD("Mode - 1:","Attendance Mode");
@@ -578,7 +495,7 @@ void setup() {
   }
   else if (s0 == 1 && s1 == 0) {
       // ---------------------------------
-      // --- MODE 2: UPLOAD ATTENDANCE LOG
+      //     MODE 2: UPLOAD ATTENDANCE LOG
       // ---------------------------------
       Serial.println("Entering Mode 2: UPLOAD DAILY LOG");
       displayOnLCD("Mode 2: Upload", "Daily Log");
@@ -608,7 +525,7 @@ void setup() {
   }
   else if (s0 == 1 && s1 == 1) {
     // ---------------------------------
-    // --- MODE 3: UPLOAD STUDENT DATABASE
+    //     MODE 3: UPLOAD STUDENT DATABASE
     // ---------------------------------
     Serial.println("Entering Mode 3: UPLOAD STUDENT DATABASE");
     displayOnLCD("Mode - 3:","");
@@ -618,9 +535,8 @@ void setup() {
 
     client.setInsecure();
 
-    // 2. Try to connect to WiFi
     Serial.print("Connecting to WiFi: "); Serial.print(WIFI_SSID);
-    displayOnLCD("Connecting to WiFi:",String(WIFI_SSID));
+    displayOnLCD("Connecting to",String(WIFI_SSID));
     delay(500);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
     int retries = 0;
@@ -643,7 +559,7 @@ void setup() {
 }
 
 // ===================================================================
-// == MAIN LOOP FUNCTION
+//     MAIN LOOP FUNCTION
 // ===================================================================
 void loop() {
   // --- MODE SELECTION ---
@@ -935,6 +851,7 @@ void loop() {
         Serial.print("Success: "); Serial.println(successCount);
         Serial.print("Failed:  "); Serial.println(failCount);
 
+
         // --- Final Result on LCD ---
         if (failCount == 0 && successCount > 0) {
           Serial.println("All entries uploaded. Log is now clear.");
@@ -1008,8 +925,10 @@ void loop() {
         url += name;
 
 
+
         Serial.print("Uploading: "); Serial.println(line);
         
+
         // Google Scripts redirect
         http.begin(client, url);
         http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
